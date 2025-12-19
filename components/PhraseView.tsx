@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { PHRASES } from '../constants';
 import { Phrase } from '../types';
-import { generateTTS, decodeBase64, decodeAudioData } from '../services/geminiService';
+import { generateTTS, decode, decodeAudioData } from '../services/geminiService';
 
 const PhraseCard: React.FC<{ 
   phrase: Phrase; 
@@ -15,10 +15,10 @@ const PhraseCard: React.FC<{
     if (isPlaying) return;
     setIsPlaying(true);
     try {
-      const audio = await generateTTS(phrase.jp);
-      if (audio) {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const decoded = decodeBase64(audio);
+      const audioBase64 = await generateTTS(phrase.jp);
+      if (audioBase64) {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
+        const decoded = decode(audioBase64);
         const buffer = await decodeAudioData(decoded, audioCtx);
         const source = audioCtx.createBufferSource();
         source.buffer = buffer;
@@ -29,58 +29,47 @@ const PhraseCard: React.FC<{
         setIsPlaying(false);
       }
     } catch (e) {
-      console.error(e);
       setIsPlaying(false);
     }
   };
 
   return (
-    <div className="bg-white border border-slate-100 p-5 rounded-[2rem] shadow-sm mb-4 flex items-center justify-between group hover:border-indigo-200 transition-all animate-fade-in relative overflow-hidden">
+    <div className="bg-white border border-slate-100 p-7 rounded-[2.8rem] shadow-sm mb-4 flex items-center justify-between group hover:border-indigo-200 transition-all animate-fade-in">
       <div className="flex-1">
-        <div className="flex items-center gap-2 mb-2">
-           <span className="text-[10px] font-black text-white bg-indigo-500 px-2.5 py-0.5 rounded-full uppercase tracking-tighter shadow-sm shadow-indigo-100">
-            LV.{phrase.level}
-          </span>
-          <span className="text-[10px] font-bold text-indigo-400 bg-indigo-50 px-2.5 py-0.5 rounded-full">{phrase.category}</span>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[9px] font-black text-indigo-500 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full uppercase">Lv.{phrase.level}</span>
+          <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-3 py-1 rounded-full">{phrase.category}</span>
         </div>
-        <div className="text-xl font-bold text-slate-800 font-jp leading-tight mb-2 group-hover:text-indigo-600 transition-colors">{phrase.jp}</div>
-        <div className="flex flex-wrap items-center gap-2 mb-2">
-          <span className="text-xs font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-xl">
-            [{phrase.phonetic}]
-          </span>
-          <span className="text-[10px] text-slate-300 italic font-medium tracking-tight">{phrase.romaji}</span>
+        <div className="text-2xl font-black text-slate-800 font-jp leading-tight mb-2 group-hover:text-indigo-600 transition-colors">{phrase.jp}</div>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[10px] font-black text-indigo-600 bg-indigo-50/50 px-3 py-1 rounded-lg">[{phrase.phonetic}]</span>
         </div>
-        <div className="text-sm text-slate-500 font-bold">{phrase.kr}</div>
+        <div className="text-sm text-slate-400 font-bold">{phrase.kr}</div>
       </div>
-      <div className="flex flex-col gap-2 ml-4">
+      <div className="flex flex-col gap-3 ml-4">
         <button 
           onClick={play}
           disabled={isPlaying}
-          className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all active:scale-90 shadow-lg ${
-            isPlaying ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100'
-          } text-white`}
+          className={`w-14 h-14 rounded-[1.2rem] flex items-center justify-center transition-all active:scale-90 shadow-md ${
+            isPlaying ? 'bg-indigo-400' : 'bg-indigo-600 text-white'
+          }`}
         >
           {isPlaying ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-volume-high"></i>}
         </button>
         <button 
           onClick={() => onToggleFavorite(phrase.id)}
-          className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all active:scale-90 ${
-            isFavorite ? 'bg-amber-100 text-amber-500 shadow-amber-100 shadow-md border border-amber-200' : 'bg-slate-50 text-slate-300 hover:text-amber-400 border border-slate-100'
+          className={`w-14 h-14 rounded-[1.2rem] flex items-center justify-center transition-all active:scale-90 shadow-sm border ${
+            isFavorite ? 'bg-amber-50 text-amber-500 border-amber-200' : 'bg-white text-slate-100 border-slate-100'
           }`}
         >
-          <i className={`fa-solid fa-star ${isFavorite ? 'scale-110' : ''}`}></i>
+          <i className={`fa-solid fa-star ${isFavorite ? 'text-amber-400' : ''}`}></i>
         </button>
       </div>
     </div>
   );
 };
 
-interface PhraseViewProps {
-  favorites: string[];
-  onToggleFavorite: (id: string) => void;
-}
-
-const PhraseView: React.FC<PhraseViewProps> = ({ favorites, onToggleFavorite }) => {
+const PhraseView: React.FC<{ favorites: string[]; onToggleFavorite: (id: string) => void }> = ({ favorites, onToggleFavorite }) => {
   const [tab, setTab] = useState<'learn' | 'favs'>('learn');
   const [selectedCat, setSelectedCat] = useState<string>('인사');
   const [selectedLevel, setSelectedLevel] = useState<number>(1);
@@ -96,94 +85,35 @@ const PhraseView: React.FC<PhraseViewProps> = ({ favorites, onToggleFavorite }) 
   }, [tab, selectedCat, selectedLevel, favorites]);
 
   return (
-    <div className="p-4 animate-fade-in">
-      <div className="flex bg-slate-100 rounded-2xl p-1.5 mb-6 shadow-inner">
-        <button
-          onClick={() => setTab('learn')}
-          className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${
-            tab === 'learn' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-400 hover:text-slate-500'
-          }`}
-        >
-          회화 학습
-        </button>
-        <button
-          onClick={() => setTab('favs')}
-          className={`flex-1 py-3 text-sm font-black rounded-xl transition-all flex items-center justify-center gap-2 ${
-            tab === 'favs' ? 'bg-white shadow-md text-amber-500' : 'text-slate-400 hover:text-slate-500'
-          }`}
-        >
-          <i className="fa-solid fa-star text-xs"></i>
-          중요 회화
-        </button>
+    <div className="p-4 animate-fade-in pb-28 bg-[#f8fafc]">
+      <div className="flex bg-slate-100 rounded-[2.5rem] p-1.5 mb-8 shadow-inner">
+        <button onClick={() => setTab('learn')} className={`flex-1 py-4 text-sm font-black rounded-[2rem] transition-all ${tab === 'learn' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-400'}`}>회화 학습</button>
+        <button onClick={() => setTab('favs')} className={`flex-1 py-4 text-sm font-black rounded-[2rem] transition-all flex items-center justify-center gap-2 ${tab === 'favs' ? 'bg-white shadow-md text-amber-500' : 'text-slate-400'}`}><i className="fa-solid fa-star text-xs"></i> 중요 회화</button>
       </div>
 
       {tab === 'learn' && (
-        <div className="space-y-6">
-          <div className="animate-fade-in">
-            <label className="text-[10px] font-black text-slate-400 mb-2 block px-1 uppercase tracking-widest">CATEGORY</label>
-            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+        <div className="space-y-8 mb-8">
+          <div>
+            <label className="text-[10px] font-black text-slate-400 mb-3 block px-4 uppercase tracking-[0.2em]">Category</label>
+            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar px-1">
               {categories.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCat(cat)}
-                  className={`px-6 py-2.5 rounded-2xl text-sm font-black whitespace-nowrap border-2 transition-all ${
-                    selectedCat === cat ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-100'
-                  }`}
-                >
-                  {cat}
-                </button>
+                <button key={cat} onClick={() => setSelectedCat(cat)} className={`px-6 py-3.5 rounded-[1.8rem] text-sm font-black whitespace-nowrap border-2 transition-all ${selectedCat === cat ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'}`}>{cat}</button>
               ))}
             </div>
           </div>
-
-          <div className="animate-fade-in">
-            <label className="text-[10px] font-black text-slate-400 mb-2 block px-1 uppercase tracking-widest">DIFFICULTY LEVEL</label>
-            <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar">
+          <div>
+            <label className="text-[10px] font-black text-slate-400 mb-3 block px-4 uppercase tracking-[0.2em]">Level</label>
+            <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar px-1">
               {levels.map(lv => (
-                <button
-                  key={lv}
-                  onClick={() => setSelectedLevel(lv)}
-                  className={`min-w-[48px] h-[48px] rounded-2xl flex items-center justify-center text-sm font-black border-2 transition-all ${
-                    selectedLevel === lv 
-                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl scale-105' 
-                      : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-100'
-                  }`}
-                >
-                  {lv}
-                </button>
+                <button key={lv} onClick={() => setSelectedLevel(lv)} className={`min-w-[54px] h-[54px] rounded-[1.8rem] flex items-center justify-center text-sm font-black border-2 transition-all ${selectedLevel === lv ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'}`}>{lv}</button>
               ))}
             </div>
           </div>
         </div>
       )}
 
-      <div className="space-y-4 mt-4">
-        <div className="flex items-center justify-between px-1 mb-2">
-          <h3 className="text-sm font-black text-slate-700">
-            {tab === 'favs' ? '나의 중요 회화' : `${selectedCat} - Lv.${selectedLevel}`}
-          </h3>
-          <span className="text-[11px] text-slate-400 font-black">총 {displayedPhrases.length}개</span>
-        </div>
-        
-        {displayedPhrases.length === 0 ? (
-          <div className="text-center py-24 bg-white rounded-[3rem] border-4 border-dashed border-slate-50 flex flex-col items-center">
-             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                <i className="fa-solid fa-feather-pointed text-3xl text-slate-200"></i>
-             </div>
-            <p className="text-slate-400 text-sm font-black leading-relaxed">
-              {tab === 'favs' ? '별을 눌러 중요한 문장을\n여기에 보관해보세요!' : '이 단계의 문장을 로직이가\n열심히 준비하고 있어요!'}
-            </p>
-          </div>
-        ) : (
-          displayedPhrases.map((phrase) => (
-            <PhraseCard 
-              key={phrase.id} 
-              phrase={phrase} 
-              isFavorite={favorites.includes(phrase.id)}
-              onToggleFavorite={onToggleFavorite}
-            />
-          ))
-        )}
+      <div className="space-y-4">
+        {displayedPhrases.map(p => <PhraseCard key={p.id} phrase={p} isFavorite={favorites.includes(p.id)} onToggleFavorite={onToggleFavorite} />)}
       </div>
     </div>
   );

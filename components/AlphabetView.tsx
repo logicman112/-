@@ -1,7 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { HIRAGANA, KATAKANA } from '../constants';
-import { generateTTS, decodeBase64, decodeAudioData } from '../services/geminiService';
+// Fix: decodeBase64 is not exported from geminiService, use decode instead.
+import { generateTTS, decode, decodeAudioData } from '../services/geminiService';
 import { Character } from '../types';
 
 const DrawingBoard: React.FC<{ char: Character; onComplete: (accuracy: number) => void }> = ({ char, onComplete }) => {
@@ -201,8 +202,8 @@ const AlphabetView: React.FC = () => {
     setLoadingAudio(char);
     const audioBase64 = await generateTTS(char);
     if (audioBase64) {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const decoded = decodeBase64(audioBase64);
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
+      const decoded = decode(audioBase64);
       const buffer = await decodeAudioData(decoded, audioCtx);
       const source = audioCtx.createBufferSource();
       source.buffer = buffer;
@@ -225,9 +226,29 @@ const AlphabetView: React.FC = () => {
     <div className="p-4 animate-fade-in max-w-md mx-auto">
       {!selectedChar ? (
         <>
+          {/* 문자 설명 박스 */}
+          <div className="mb-6 p-5 bg-indigo-50 rounded-3xl border border-indigo-100 shadow-sm animate-fade-in">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-md">
+                <i className="fa-solid fa-lightbulb"></i>
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-indigo-900 mb-1">
+                  {tab === 'hiragana' ? '히라가나 (平仮名)' : '가타카나 (片仮名)'}의 특징
+                </h3>
+                <p className="text-[11px] font-bold text-indigo-600/80 leading-relaxed">
+                  {tab === 'hiragana' 
+                    ? "일본어의 가장 기본적인 문자로, 주로 일본 고유어나 문법 요소(조사 등)를 표기할 때 사용합니다.\n부드럽고 곡선적인 형태가 특징이며, 처음 일본어를 배울 때 가장 먼저 익히는 문자입니다."
+                    : "외국에서 들어온 외래어, 외국 인명, 의성어나 의태어를 표기할 때 주로 사용합니다.\n직선적이고 각진 형태가 특징이며, 히라가나와 1:1로 대응되므로 함께 외우는 것이 좋습니다."
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="flex bg-slate-100 rounded-2xl p-1.5 mb-8 shadow-inner">
             <button
-              onClick={() => setTab('hiragana')}
+              onClick={() => {setTab('hiragana'); setAccuracyResult(null); setSuccessCount(0);}}
               className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${
                 tab === 'hiragana' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-400'
               }`}
@@ -235,7 +256,7 @@ const AlphabetView: React.FC = () => {
               히라가나
             </button>
             <button
-              onClick={() => setTab('katakana')}
+              onClick={() => {setTab('katakana'); setAccuracyResult(null); setSuccessCount(0);}}
               className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${
                 tab === 'katakana' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-400'
               }`}

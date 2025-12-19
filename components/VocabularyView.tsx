@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { CHAPTER_WORDS } from '../constants';
 import { Word } from '../types';
-import { generateTTS, decodeBase64, decodeAudioData } from '../services/geminiService';
+import { generateTTS, decode, decodeAudioData } from '../services/geminiService';
 
 interface VocabularyViewProps {
   favorites: string[];
@@ -10,19 +10,20 @@ interface VocabularyViewProps {
 }
 
 const VocabularyView: React.FC<VocabularyViewProps> = ({ favorites, onToggleFavorite }) => {
-  const [tab, setTab] = useState<'chapters' | 'favorites'>('chapters');
-  const [currentChapter, setCurrentChapter] = useState(1);
+  const [tab, setTab] = useState<'study' | 'favorites'>('study');
+  const [selectedCat, setSelectedCat] = useState<string>('필수 형용사');
+  const [selectedLevel, setSelectedLevel] = useState<number>(1);
   const [playingId, setPlayingId] = useState<string | null>(null);
 
-  // 현재 데이터에 있는 챕터 수만큼 표시 (동적으로 계산 가능하지만 명시적으로 10챕터 설정)
-  const chapters = Array.from({ length: 10 }, (_, i) => i + 1);
+  const categories = ['기초 명사', '일상 동사', '필수 형용사', '여행/생활', '비즈니스/사회'];
+  const levels = Array.from({ length: 10 }, (_, i) => i + 1);
 
   const displayedWords = useMemo(() => {
     if (tab === 'favorites') {
       return CHAPTER_WORDS.filter(w => favorites.includes(w.id));
     }
-    return CHAPTER_WORDS.filter(w => w.chapter === currentChapter);
-  }, [tab, currentChapter, favorites]);
+    return CHAPTER_WORDS.filter(w => w.category === selectedCat && w.level === selectedLevel);
+  }, [tab, selectedCat, selectedLevel, favorites]);
 
   const playTTS = async (text: string, id: string) => {
     if (playingId) return;
@@ -30,8 +31,8 @@ const VocabularyView: React.FC<VocabularyViewProps> = ({ favorites, onToggleFavo
     try {
       const audio = await generateTTS(text);
       if (audio) {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const decoded = decodeBase64(audio);
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
+        const decoded = decode(audio);
         const buffer = await decodeAudioData(decoded, audioCtx);
         const source = audioCtx.createBufferSource();
         source.buffer = buffer;
@@ -47,102 +48,124 @@ const VocabularyView: React.FC<VocabularyViewProps> = ({ favorites, onToggleFavo
   };
 
   return (
-    <div className="p-4 animate-fade-in">
-      <div className="flex bg-slate-100 rounded-2xl p-1.5 mb-6 shadow-inner">
+    <div className="p-4 animate-fade-in pb-28 bg-[#f8fafc]">
+      {/* 탭 네비게이션 */}
+      <div className="flex bg-slate-100 rounded-[2.5rem] p-1.5 mb-8 shadow-inner">
         <button
-          onClick={() => setTab('chapters')}
-          className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${
-            tab === 'chapters' ? 'bg-white shadow text-indigo-600' : 'text-slate-400'
+          onClick={() => setTab('study')}
+          className={`flex-1 py-4 text-sm font-black rounded-[2rem] transition-all ${
+            tab === 'study' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-400'
           }`}
         >
-          챕터별 단어
+          카테고리 학습
         </button>
         <button
           onClick={() => setTab('favorites')}
-          className={`flex-1 py-3 text-sm font-black rounded-xl transition-all flex items-center justify-center gap-2 ${
-            tab === 'favorites' ? 'bg-white shadow text-amber-500' : 'text-slate-400'
+          className={`flex-1 py-4 text-sm font-black rounded-[2rem] transition-all flex items-center justify-center gap-2 ${
+            tab === 'favorites' ? 'bg-white shadow-md text-amber-500' : 'text-slate-400'
           }`}
         >
           <i className="fa-solid fa-star text-xs"></i>
-          중요 단어
+          중요 단어장
         </button>
       </div>
 
-      {tab === 'chapters' && (
-        <div className="mb-6">
-          <label className="text-[10px] font-black text-slate-400 mb-2 block px-1 uppercase tracking-widest">CHAPTER SELECT</label>
-          <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
-            {chapters.map(ch => (
-              <button
-                key={ch}
-                onClick={() => setCurrentChapter(ch)}
-                className={`min-w-[60px] h-[60px] rounded-[1.5rem] flex items-center justify-center text-sm font-black border-2 transition-all ${
-                  currentChapter === ch 
-                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl scale-105' 
-                    : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-100'
-                }`}
-              >
-                {ch}
-              </button>
-            ))}
+      {tab === 'study' && (
+        <div className="space-y-8 mb-8">
+          <div>
+            <label className="text-[10px] font-black text-slate-400 mb-3 block px-4 uppercase tracking-[0.2em]">Select Category</label>
+            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar px-1">
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCat(cat)}
+                  className={`px-6 py-3.5 rounded-[1.8rem] text-sm font-black whitespace-nowrap border-2 transition-all ${
+                    selectedCat === cat ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="mt-2 px-6 py-5 bg-gradient-to-r from-indigo-50 to-violet-50 rounded-3xl border border-indigo-100 flex items-center justify-between shadow-sm">
-            <div>
-              <span className="block text-xs font-black text-indigo-600 uppercase mb-1">Chapter {currentChapter}</span>
-              <span className="text-sm text-slate-700 font-bold">주제별 필수 단어 학습</span>
+
+          <div>
+            <label className="text-[10px] font-black text-slate-400 mb-3 block px-4 uppercase tracking-[0.2em]">Level Selector</label>
+            <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar px-1">
+              {levels.map(lv => (
+                <button
+                  key={lv}
+                  onClick={() => setSelectedLevel(lv)}
+                  className={`min-w-[54px] h-[54px] rounded-[1.8rem] flex items-center justify-center text-sm font-black border-2 transition-all ${
+                    selectedLevel === lv 
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg scale-110 z-10' 
+                      : 'bg-white border-slate-100 text-slate-400 shadow-sm'
+                  }`}
+                >
+                  {lv}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white p-7 rounded-[2.8rem] border border-slate-100 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.05)] flex items-center justify-between">
+            <div className="flex items-center gap-5">
+               <div className="w-14 h-14 bg-indigo-50 rounded-[1.8rem] flex items-center justify-center text-indigo-600 shadow-inner">
+                  <i className="fa-solid fa-graduation-cap text-xl"></i>
+               </div>
+               <div>
+                  <span className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Current Session</span>
+                  <span className="text-base font-black text-slate-800">{selectedCat} - 레벨 {selectedLevel}</span>
+               </div>
             </div>
             <div className="text-right">
-              <span className="text-[10px] text-indigo-400 font-black block">PROGRESS</span>
-              <span className="text-xs text-indigo-600 font-black">{displayedWords.length} Words</span>
+               <span className="text-2xl font-black text-indigo-600">20</span>
+               <span className="text-[10px] font-bold text-slate-400 ml-1 uppercase">Words</span>
             </div>
           </div>
         </div>
       )}
 
-      <div className="space-y-3">
-        {displayedWords.length === 0 ? (
-          <div className="text-center py-28 bg-white rounded-[3rem] border-4 border-dashed border-slate-50 flex flex-col items-center">
-            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-              <i className="fa-solid fa-book-open text-3xl text-slate-200"></i>
+      <div className="flex items-center justify-between px-3 mb-6">
+        <h3 className="text-xl font-black text-slate-800 tracking-tight">학습 단어 리스트</h3>
+        <span className="text-[10px] text-indigo-500 font-black bg-indigo-50 px-4 py-1.5 rounded-full border border-indigo-100">총 {displayedWords.length}개</span>
+      </div>
+
+      <div className="space-y-4">
+        {displayedWords.map((word) => (
+          <div key={word.id} className="bg-white p-6 rounded-[2.8rem] border border-slate-100 shadow-[0_4px_20px_-5px_rgba(0,0,0,0.03)] flex items-center justify-between group hover:border-indigo-200 transition-all animate-fade-in">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-2xl font-black text-slate-800 font-jp leading-none group-hover:text-indigo-600 transition-colors">
+                  {word.jp}
+                </span>
+                <span className="text-[10px] font-black text-indigo-500 bg-indigo-50/50 border border-indigo-100 px-3 py-1.5 rounded-xl shadow-sm">
+                  [{word.phonetic}]
+                </span>
+              </div>
+              <div className="text-sm text-slate-400 font-bold ml-1">{word.kr}</div>
             </div>
-            <p className="text-slate-400 text-sm font-black leading-relaxed">
-              {tab === 'favorites' ? '별표를 눌러 저장한\n단어가 아직 없어요.' : `Chapter ${currentChapter} 단어를\n곧 채워드릴게요!`}
-            </p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => playTTS(word.jp, word.id)}
+                disabled={!!playingId && playingId === word.id}
+                className={`w-12 h-12 rounded-[1.2rem] flex items-center justify-center transition-all active:scale-90 shadow-sm border ${
+                  playingId === word.id ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-300 hover:text-indigo-600 border-slate-100'
+                }`}
+              >
+                {playingId === word.id ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-volume-high text-sm"></i>}
+              </button>
+              <button
+                onClick={() => onToggleFavorite(word.id)}
+                className={`w-12 h-12 rounded-[1.2rem] flex items-center justify-center transition-all active:scale-90 shadow-sm border ${
+                  favorites.includes(word.id) ? 'bg-amber-50 text-amber-500 border-amber-100' : 'bg-white text-slate-100 border-slate-100'
+                }`}
+              >
+                <i className={`fa-solid fa-star text-sm ${favorites.includes(word.id) ? 'text-amber-400' : ''}`}></i>
+              </button>
+            </div>
           </div>
-        ) : (
-          displayedWords.map((word) => (
-            <div key={word.id} className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between group hover:border-indigo-200 transition-all animate-fade-in">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-2xl font-black text-slate-800 font-jp leading-none group-hover:text-indigo-600 transition-colors">{word.jp}</span>
-                  <span className="text-xs font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-xl shadow-sm shadow-indigo-50">
-                    [{word.phonetic}]
-                  </span>
-                </div>
-                <div className="text-sm text-slate-500 font-bold ml-1">{word.kr}</div>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => playTTS(word.jp, word.id)}
-                  disabled={!!playingId && playingId === word.id}
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all active:scale-90 shadow-lg ${
-                    playingId === word.id ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-300 hover:text-indigo-600 border border-slate-100'
-                  }`}
-                >
-                  {playingId === word.id ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-volume-high text-sm"></i>}
-                </button>
-                <button
-                  onClick={() => onToggleFavorite(word.id)}
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all active:scale-90 shadow-md border ${
-                    favorites.includes(word.id) ? 'bg-amber-100 text-amber-500 border-amber-200 shadow-amber-50' : 'bg-slate-50 text-slate-300 border-slate-100 hover:text-amber-400'
-                  }`}
-                >
-                  <i className={`fa-solid fa-star ${favorites.includes(word.id) ? 'scale-110' : ''}`}></i>
-                </button>
-              </div>
-            </div>
-          ))
-        )}
+        ))}
       </div>
     </div>
   );

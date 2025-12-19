@@ -31,7 +31,8 @@ export interface Word {
   jp: string;
   kr: string;
   phonetic: string;
-  chapter: number;
+  category: string; // 추가
+  level: number;    // chapter에서 level로 변경
 }
 
 export interface ChatMessage {

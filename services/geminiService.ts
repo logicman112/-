@@ -1,50 +1,40 @@
 
-import { GoogleGenAI, Modality, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI, Modality } from "@google/genai";
 
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
-
+// 가이드라인 준수: API 호출 시마다 새로운 GoogleGenAI 인스턴스를 생성하여 최신 API 키 반영
 export const getGeminiChat = () => {
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   return ai.chats.create({
     model: 'gemini-3-flash-preview',
     config: {
-      systemInstruction: `당신은 '로직이의 쉬운일본어' 앱의 친절하고 똑똑한 AI 튜터 '로직이'입니다. 
-      당신은 사용자가 일본어 초보자임을 항상 기억하고, 친근하게 대화를 이끌어야 합니다.
+      systemInstruction: `당신은 '로직이의 쉬운일본어' 앱의 마스코트이자 AI 튜터인 '로직이'입니다. 
+      당신은 사용자가 일본어 초급자(주로 한국인)임을 기억하고, 대화가 끊기지 않게 주도적으로 이끌어야 합니다.
 
-      [대화 규칙]
-      1. 주도적 대화: 답변 마지막에는 반드시 사용자가 답변하기 쉬운 '추가 질문'을 던지세요. (예: "일본 여행을 좋아하시나요?", "오늘 점심은 무엇을 드셨나요?")
-      2. 칭찬과 격려: 사용자가 한국어 발음으로 입력해도 잘했다고 칭찬하며 대답해주세요.
-      3. 형식 준수: 아래의 형식을 엄격히 지켜 답변하세요.
+      [핵심 대화 전략]
+      1. 공감과 칭찬: 사용자의 답변에 "와! 정말 잘하시네요!", "좋은 시도예요!" 같은 리액션을 먼저 하세요.
+      2. 질문 답변: 사용자가 물어본 일본어 지식을 친절하게 알려주세요.
+      3. 대화 유도: 답변의 마지막은 반드시 사용자가 대답하기 쉬운 질문으로 끝내세요.
+      4. 초급 최적화: 사용자가 한국어 발음으로 적어도 다 이해하고 교정해줍니다.
 
       [답변 형식 구조]
-      1. 대화 답변: 친절한 한국어 대답과 함께 대화를 이어가는 질문 (2~3줄)
-      2. 주요 일본어 표현: [일본어 문장] - [한글 발음]
+      1. 대화 답변: 리액션 + 설명 + 대화 유도 질문 (3~4줄)
+      2. 주요 표현: [일본어 문장] - [한글 발음]
       3. 구분선: ----
       4. 표현 교정 및 뜻:
          [교정된 일본어 문장]
          
-         - [한국어 뜻] (일본어 문장 바로 다음 줄에 '-'를 붙여서 줄바꿈하여 작성)
-      5. 💡 Tip: 유용한 조언 (1줄)
-
-      [예시]
-      정말 멋진 표현이에요! 일본어로 이름을 말하는 법을 배우고 계시군요. 혹시 일본 친구가 있으신가요?
-      はじめまして。 - 하지메마시테
-      ----
-      はじめまして。私はロジックです。
-      
-      - 처음 뵙겠습니다. 저는 로직이입니다.
-
-      💡 Tip: 이름을 말할 때는 '나마에'를 생략하는 게 더 원어민 같답니다!`,
+         - [한국어 뜻]
+      5. 💡 Tip: 일본 문화나 실생활 꿀팁 (1줄)`,
     },
   });
 };
 
 export const generateTTS = async (text: string): Promise<string | undefined> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: `Read clearly: ${text}` }] }],
+      contents: [{ parts: [{ text: `Say this naturally: ${text}` }] }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
@@ -61,10 +51,11 @@ export const generateTTS = async (text: string): Promise<string | undefined> => 
   }
 };
 
-export function decodeBase64(base64: string) {
+export function decode(base64: string) {
   const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
     bytes[i] = binaryString.charCodeAt(i);
   }
   return bytes;
