@@ -1,8 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { HIRAGANA, KATAKANA } from '../constants';
-// Fix: decodeBase64 is not exported from geminiService, use decode instead.
 import { generateTTS, decode, decodeAudioData } from '../services/geminiService';
+import { playClickSound } from '../services/audioService';
 import { Character } from '../types';
 
 const DrawingBoard: React.FC<{ char: Character; onComplete: (accuracy: number) => void }> = ({ char, onComplete }) => {
@@ -60,6 +60,7 @@ const DrawingBoard: React.FC<{ char: Character; onComplete: (accuracy: number) =
   };
 
   const checkAccuracy = () => {
+    playClickSound();
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -97,7 +98,6 @@ const DrawingBoard: React.FC<{ char: Character; onComplete: (accuracy: number) =
     const accuracy = (matchingPixels / targetPixels) - (wrongPixels / targetPixels * 0.1);
     onComplete(Math.max(0, accuracy));
     
-    // 채점 후 캔버스 자동 초기화
     setTimeout(() => {
       clearCanvas();
     }, 500);
@@ -148,7 +148,7 @@ const DrawingBoard: React.FC<{ char: Character; onComplete: (accuracy: number) =
       </div>
       <div className="flex gap-3 w-full">
         <button 
-          onClick={clearCanvas} 
+          onClick={() => { playClickSound(); clearCanvas(); }} 
           className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-sm active:scale-95 transition-all flex items-center justify-center gap-2"
         >
           <i className="fa-solid fa-rotate-right"></i> 다시 쓰기
@@ -174,7 +174,6 @@ const AlphabetView: React.FC = () => {
   const data = tab === 'hiragana' ? HIRAGANA : KATAKANA;
 
   useEffect(() => {
-    // 3번 통과 시 다음 글자로 이동
     if (successCount >= 3) {
       const timer = setTimeout(() => {
         handleNextChar();
@@ -214,7 +213,7 @@ const AlphabetView: React.FC = () => {
   };
 
   const handleDrawComplete = (acc: number) => {
-    const success = acc >= 0.4; // 유사도 40% 이상 통과
+    const success = acc >= 0.4;
     setAccuracyResult({ acc, success });
     if (success) {
       setSuccessCount(prev => prev + 1);
@@ -222,24 +221,31 @@ const AlphabetView: React.FC = () => {
     }
   };
 
+  const switchTab = (newTab: 'hiragana' | 'katakana') => {
+    playClickSound();
+    setTab(newTab);
+    setAccuracyResult(null);
+    setSuccessCount(0);
+  };
+
   return (
-    <div className="p-4 animate-fade-in max-w-md mx-auto">
+    <div className="p-4 animate-fade-in max-w-md mx-auto pb-24">
       {!selectedChar ? (
         <>
-          {/* 문자 설명 박스 */}
-          <div className="mb-6 p-5 bg-indigo-50 rounded-3xl border border-indigo-100 shadow-sm animate-fade-in">
-            <div className="flex items-start gap-3">
+          {/* 문자 학습 팁 박스 */}
+          <div className="mb-6 p-5 bg-indigo-50 rounded-[2rem] border border-indigo-100 shadow-sm animate-fade-in">
+            <div className="flex items-start gap-4">
               <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-md">
                 <i className="fa-solid fa-lightbulb"></i>
               </div>
               <div>
                 <h3 className="text-sm font-black text-indigo-900 mb-1">
-                  {tab === 'hiragana' ? '히라가나 (平仮名)' : '가타카나 (片仮名)'}의 특징
+                  {tab === 'hiragana' ? '히라가나 (平仮名)' : '가타카나 (片仮名)'} 학습 팁
                 </h3>
                 <p className="text-[11px] font-bold text-indigo-600/80 leading-relaxed">
                   {tab === 'hiragana' 
-                    ? "일본어의 가장 기본적인 문자로, 주로 일본 고유어나 문법 요소(조사 등)를 표기할 때 사용합니다.\n부드럽고 곡선적인 형태가 특징이며, 처음 일본어를 배울 때 가장 먼저 익히는 문자입니다."
-                    : "외국에서 들어온 외래어, 외국 인명, 의성어나 의태어를 표기할 때 주로 사용합니다.\n직선적이고 각진 형태가 특징이며, 히라가나와 1:1로 대응되므로 함께 외우는 것이 좋습니다."
+                    ? "일본어의 기초이며 고유어나 문법 요소 표기에 쓰입니다.\n부드러운 곡선이 특징이며, 일본어를 배울 때 가장 먼저 익힙니다."
+                    : "외래어나 의성어, 강조하고 싶은 단어 등에 주로 쓰입니다.\n직선적이고 각진 형태이며, 히라가나와 발음은 1:1로 같습니다."
                   }
                 </p>
               </div>
@@ -248,7 +254,7 @@ const AlphabetView: React.FC = () => {
 
           <div className="flex bg-slate-100 rounded-2xl p-1.5 mb-8 shadow-inner">
             <button
-              onClick={() => {setTab('hiragana'); setAccuracyResult(null); setSuccessCount(0);}}
+              onClick={() => switchTab('hiragana')}
               className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${
                 tab === 'hiragana' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-400'
               }`}
@@ -256,7 +262,7 @@ const AlphabetView: React.FC = () => {
               히라가나
             </button>
             <button
-              onClick={() => {setTab('katakana'); setAccuracyResult(null); setSuccessCount(0);}}
+              onClick={() => switchTab('katakana')}
               className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${
                 tab === 'katakana' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-400'
               }`}
@@ -269,7 +275,7 @@ const AlphabetView: React.FC = () => {
             {data.map((char) => (
               <button
                 key={char.id}
-                onClick={() => { setSelectedChar(char); setAccuracyResult(null); setSuccessCount(0); }}
+                onClick={() => { playClickSound(); setSelectedChar(char); setAccuracyResult(null); setSuccessCount(0); }}
                 className="flex flex-col items-center justify-center bg-white border-2 border-slate-50 p-5 rounded-3xl shadow-sm hover:shadow-xl hover:border-indigo-100 transition-all active:scale-95 group relative"
               >
                 <span className="text-3xl font-black text-slate-800 mb-1 font-jp group-hover:text-indigo-600 transition-colors">
@@ -286,7 +292,7 @@ const AlphabetView: React.FC = () => {
         <div className="animate-fade-in flex flex-col items-center">
           <div className="w-full flex items-center justify-between mb-8">
             <button 
-              onClick={() => { setSelectedChar(null); setAccuracyResult(null); setSuccessCount(0); }}
+              onClick={() => { playClickSound(); setSelectedChar(null); setAccuracyResult(null); setSuccessCount(0); }}
               className="w-10 h-10 rounded-full bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all"
             >
               <i className="fa-solid fa-arrow-left"></i>

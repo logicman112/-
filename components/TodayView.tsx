@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { CHAPTER_WORDS, PHRASES } from '../constants';
 import { Word, Phrase, User } from '../types';
 import { generateTTS, decode, decodeAudioData } from '../services/geminiService';
+import { playClickSound } from '../services/audioService';
 
 const getLocalDateStr = (date: Date) => {
   const year = date.getFullYear();
@@ -100,12 +101,14 @@ const TodayView: React.FC<TodayViewProps> = ({ user, wordFavorites, phraseFavori
   }, [completedIds, todayStr, completionHistory]);
 
   const toggleComplete = (id: string) => {
+    playClickSound();
     const newIds = completedIds.includes(id) ? completedIds.filter(i => i !== id) : [...completedIds, id];
     setCompletedIds(newIds);
     localStorage.setItem(`nm_today_done_${todayStr}`, JSON.stringify(newIds));
   };
 
   const playTTS = async (text: string, id: string) => {
+    playClickSound();
     if (playingId) return;
     setPlayingId(id);
     try {
@@ -161,7 +164,7 @@ const TodayView: React.FC<TodayViewProps> = ({ user, wordFavorites, phraseFavori
               </div>
             </div>
             <div className="flex gap-2">
-               <button onClick={() => playTTS(word.jp, word.id)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-300 flex items-center justify-center hover:text-indigo-600"><i className="fa-solid fa-volume-high text-xs"></i></button>
+               <button onClick={() => playTTS(word.jp, word.id)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-300 flex items-center justify-center hover:text-indigo-600 transition-colors"><i className="fa-solid fa-volume-high text-xs"></i></button>
             </div>
           </div>
         ))}

@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { getGeminiChat, generateTTS, decode, decodeAudioData } from '../services/geminiService';
+import { playClickSound } from '../services/audioService';
 import { ChatMessage } from '../types';
 
 const AITutorView: React.FC = () => {
@@ -26,10 +27,9 @@ const AITutorView: React.FC = () => {
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
+    playClickSound();
 
-    // 첫 메시지 전송 시 오디오 컨텍스트 초기화 (브라우저 정책 대응)
     if (!audioContextRef.current) {
-      // Fix: Use recommended sample rate for TTS and handle webkit prefix for TypeScript
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
     }
 
@@ -60,19 +60,17 @@ const AITutorView: React.FC = () => {
   };
 
   const playTTS = async (text: string, index: number) => {
+    playClickSound();
     if (playingMsgIndex !== null) return;
     
-    // 오디오 컨텍스트 상태 확인 및 재개
     if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
       await audioContextRef.current.resume();
     } else if (!audioContextRef.current) {
-      // Fix: Use recommended sample rate for TTS and handle webkit prefix for TypeScript
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
     }
 
-    // TTS를 생성할 텍스트 추출 (첫 문장이나 주요 표현 위주)
     const parts = text.split('----');
-    const speechText = parts[0].trim(); // 답변 부분만 읽기
+    const speechText = parts[0].trim();
 
     setPlayingMsgIndex(index);
     try {
@@ -107,9 +105,7 @@ const AITutorView: React.FC = () => {
               <div className="whitespace-pre-wrap leading-relaxed font-medium">
                 {msg.text.split('\n').map((line, idx) => {
                   const trimmedLine = line.trim();
-                  if (trimmedLine === '----') {
-                    return <hr key={idx} className="my-5 border-slate-100" />;
-                  }
+                  if (trimmedLine === '----') return <hr key={idx} className="my-5 border-slate-100" />;
                   if (trimmedLine.startsWith('💡 Tip:')) {
                     return (
                       <div key={idx} className="mt-4 p-4 bg-amber-50 rounded-2xl text-amber-700 text-[11px] font-black border border-amber-100 flex gap-2">
@@ -118,20 +114,10 @@ const AITutorView: React.FC = () => {
                       </div>
                     );
                   }
-                  
-                  // 질문 문장을 강조하기 위한 로직 (답변 부분에서 마지막 문장이 ?로 끝나는 경우)
                   const isQuestion = trimmedLine.includes('?') && idx < 5;
                   const isCorrectionLine = trimmedLine.startsWith('-');
-
                   return (
-                    <div 
-                      key={idx} 
-                      className={`
-                        ${isCorrectionLine ? 'text-indigo-500 font-bold mt-2 pl-2' : ''} 
-                        ${isQuestion ? 'text-slate-900 font-[900] text-[15px] border-l-4 border-indigo-200 pl-3 my-2' : ''}
-                        ${msg.role === 'user' ? 'text-white' : ''}
-                      `}
-                    >
+                    <div key={idx} className={`${isCorrectionLine ? 'text-indigo-500 font-bold mt-2 pl-2' : ''} ${isQuestion ? 'text-slate-900 font-[900] text-[15px] border-l-4 border-indigo-200 pl-3 my-2' : ''} ${msg.role === 'user' ? 'text-white' : ''}`}>
                       {line}
                     </div>
                   );
@@ -142,19 +128,12 @@ const AITutorView: React.FC = () => {
                 <button 
                   onClick={() => playTTS(msg.text, i)}
                   className={`mt-6 flex items-center gap-2 px-5 py-3 rounded-2xl text-[11px] font-black transition-all active:scale-95 shadow-sm ${
-                    playingMsgIndex === i 
-                    ? 'bg-indigo-600 text-white' 
-                    : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-100'
+                    playingMsgIndex === i ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-100'
                   }`}
                 >
-                  {playingMsgIndex === i ? (
-                    <><i className="fa-solid fa-spinner fa-spin"></i> 로직이가 말하는 중...</>
-                  ) : (
-                    <><i className="fa-solid fa-volume-high"></i> 로직이 목소리 듣기</>
-                  )}
+                  {playingMsgIndex === i ? <><i className="fa-solid fa-spinner fa-spin"></i> 로직이가 말하는 중...</> : <><i className="fa-solid fa-volume-high"></i> 로직이 목소리 듣기</>}
                 </button>
               )}
-              
               <div className={`text-[9px] mt-2 opacity-30 font-bold ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
                 {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>

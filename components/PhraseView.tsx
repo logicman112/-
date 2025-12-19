@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { PHRASES } from '../constants';
 import { Phrase } from '../types';
 import { generateTTS, decode, decodeAudioData } from '../services/geminiService';
+import { playClickSound } from '../services/audioService';
 
 const PhraseCard: React.FC<{ 
   phrase: Phrase; 
@@ -12,6 +13,7 @@ const PhraseCard: React.FC<{
   const [isPlaying, setIsPlaying] = useState(false);
 
   const play = async () => {
+    playClickSound();
     if (isPlaying) return;
     setIsPlaying(true);
     try {
@@ -57,7 +59,7 @@ const PhraseCard: React.FC<{
           {isPlaying ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-volume-high"></i>}
         </button>
         <button 
-          onClick={() => onToggleFavorite(phrase.id)}
+          onClick={() => { playClickSound(); onToggleFavorite(phrase.id); }}
           className={`w-14 h-14 rounded-[1.2rem] flex items-center justify-center transition-all active:scale-90 shadow-sm border ${
             isFavorite ? 'bg-amber-50 text-amber-500 border-amber-200' : 'bg-white text-slate-100 border-slate-100'
           }`}
@@ -84,11 +86,16 @@ const PhraseView: React.FC<{ favorites: string[]; onToggleFavorite: (id: string)
     return PHRASES.filter(p => p.category === selectedCat && p.level === selectedLevel);
   }, [tab, selectedCat, selectedLevel, favorites]);
 
+  const handleTabChange = (newTab: 'learn' | 'favs') => {
+    playClickSound();
+    setTab(newTab);
+  };
+
   return (
     <div className="p-4 animate-fade-in pb-28 bg-[#f8fafc]">
       <div className="flex bg-slate-100 rounded-[2.5rem] p-1.5 mb-8 shadow-inner">
-        <button onClick={() => setTab('learn')} className={`flex-1 py-4 text-sm font-black rounded-[2rem] transition-all ${tab === 'learn' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-400'}`}>회화 학습</button>
-        <button onClick={() => setTab('favs')} className={`flex-1 py-4 text-sm font-black rounded-[2rem] transition-all flex items-center justify-center gap-2 ${tab === 'favs' ? 'bg-white shadow-md text-amber-500' : 'text-slate-400'}`}><i className="fa-solid fa-star text-xs"></i> 중요 회화</button>
+        <button onClick={() => handleTabChange('learn')} className={`flex-1 py-4 text-sm font-black rounded-[2rem] transition-all ${tab === 'learn' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-400'}`}>회화 학습</button>
+        <button onClick={() => handleTabChange('favs')} className={`flex-1 py-4 text-sm font-black rounded-[2rem] transition-all flex items-center justify-center gap-2 ${tab === 'favs' ? 'bg-white shadow-md text-amber-500' : 'text-slate-400'}`}><i className="fa-solid fa-star text-xs"></i> 중요 회화</button>
       </div>
 
       {tab === 'learn' && (
@@ -97,7 +104,7 @@ const PhraseView: React.FC<{ favorites: string[]; onToggleFavorite: (id: string)
             <label className="text-[10px] font-black text-slate-400 mb-3 block px-4 uppercase tracking-[0.2em]">Category</label>
             <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar px-1">
               {categories.map(cat => (
-                <button key={cat} onClick={() => setSelectedCat(cat)} className={`px-6 py-3.5 rounded-[1.8rem] text-sm font-black whitespace-nowrap border-2 transition-all ${selectedCat === cat ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'}`}>{cat}</button>
+                <button key={cat} onClick={() => { playClickSound(); setSelectedCat(cat); }} className={`px-6 py-3.5 rounded-[1.8rem] text-sm font-black whitespace-nowrap border-2 transition-all ${selectedCat === cat ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'}`}>{cat}</button>
               ))}
             </div>
           </div>
@@ -105,7 +112,7 @@ const PhraseView: React.FC<{ favorites: string[]; onToggleFavorite: (id: string)
             <label className="text-[10px] font-black text-slate-400 mb-3 block px-4 uppercase tracking-[0.2em]">Level</label>
             <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar px-1">
               {levels.map(lv => (
-                <button key={lv} onClick={() => setSelectedLevel(lv)} className={`min-w-[54px] h-[54px] rounded-[1.8rem] flex items-center justify-center text-sm font-black border-2 transition-all ${selectedLevel === lv ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'}`}>{lv}</button>
+                <button key={lv} onClick={() => { playClickSound(); setSelectedLevel(lv); }} className={`min-w-[54px] h-[54px] rounded-[1.8rem] flex items-center justify-center text-sm font-black border-2 transition-all ${selectedLevel === lv ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'}`}>{lv}</button>
               ))}
             </div>
           </div>

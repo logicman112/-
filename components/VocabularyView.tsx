@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { CHAPTER_WORDS } from '../constants';
 import { Word } from '../types';
 import { generateTTS, decode, decodeAudioData } from '../services/geminiService';
+import { playClickSound } from '../services/audioService';
 
 interface VocabularyViewProps {
   favorites: string[];
@@ -11,12 +12,12 @@ interface VocabularyViewProps {
 
 const VocabularyView: React.FC<VocabularyViewProps> = ({ favorites, onToggleFavorite }) => {
   const [tab, setTab] = useState<'study' | 'favorites'>('study');
-  const [selectedCat, setSelectedCat] = useState<string>('필수 형용사');
+  const [selectedCat, setSelectedCat] = useState<string>('기초 명사');
   const [selectedLevel, setSelectedLevel] = useState<number>(1);
   const [playingId, setPlayingId] = useState<string | null>(null);
 
   const categories = ['기초 명사', '일상 동사', '필수 형용사', '여행/생활', '비즈니스/사회'];
-  const levels = Array.from({ length: 10 }, (_, i) => i + 1);
+  const levels = Array.from({ length: 5 }, (_, i) => i + 1); // 레벨 1~5로 제한
 
   const displayedWords = useMemo(() => {
     if (tab === 'favorites') {
@@ -26,6 +27,7 @@ const VocabularyView: React.FC<VocabularyViewProps> = ({ favorites, onToggleFavo
   }, [tab, selectedCat, selectedLevel, favorites]);
 
   const playTTS = async (text: string, id: string) => {
+    playClickSound();
     if (playingId) return;
     setPlayingId(id);
     try {
@@ -47,12 +49,26 @@ const VocabularyView: React.FC<VocabularyViewProps> = ({ favorites, onToggleFavo
     }
   };
 
+  const handleTabChange = (newTab: 'study' | 'favorites') => {
+    playClickSound();
+    setTab(newTab);
+  };
+
+  const handleCatChange = (cat: string) => {
+    playClickSound();
+    setSelectedCat(cat);
+  };
+
+  const handleLevelChange = (lv: number) => {
+    playClickSound();
+    setSelectedLevel(lv);
+  };
+
   return (
     <div className="p-4 animate-fade-in pb-28 bg-[#f8fafc]">
-      {/* 탭 네비게이션 */}
       <div className="flex bg-slate-100 rounded-[2.5rem] p-1.5 mb-8 shadow-inner">
         <button
-          onClick={() => setTab('study')}
+          onClick={() => handleTabChange('study')}
           className={`flex-1 py-4 text-sm font-black rounded-[2rem] transition-all ${
             tab === 'study' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-400'
           }`}
@@ -60,7 +76,7 @@ const VocabularyView: React.FC<VocabularyViewProps> = ({ favorites, onToggleFavo
           카테고리 학습
         </button>
         <button
-          onClick={() => setTab('favorites')}
+          onClick={() => handleTabChange('favorites')}
           className={`flex-1 py-4 text-sm font-black rounded-[2rem] transition-all flex items-center justify-center gap-2 ${
             tab === 'favorites' ? 'bg-white shadow-md text-amber-500' : 'text-slate-400'
           }`}
@@ -78,7 +94,7 @@ const VocabularyView: React.FC<VocabularyViewProps> = ({ favorites, onToggleFavo
               {categories.map(cat => (
                 <button
                   key={cat}
-                  onClick={() => setSelectedCat(cat)}
+                  onClick={() => handleCatChange(cat)}
                   className={`px-6 py-3.5 rounded-[1.8rem] text-sm font-black whitespace-nowrap border-2 transition-all ${
                     selectedCat === cat ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'
                   }`}
@@ -95,7 +111,7 @@ const VocabularyView: React.FC<VocabularyViewProps> = ({ favorites, onToggleFavo
               {levels.map(lv => (
                 <button
                   key={lv}
-                  onClick={() => setSelectedLevel(lv)}
+                  onClick={() => handleLevelChange(lv)}
                   className={`min-w-[54px] h-[54px] rounded-[1.8rem] flex items-center justify-center text-sm font-black border-2 transition-all ${
                     selectedLevel === lv 
                       ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg scale-110 z-10' 
@@ -105,22 +121,6 @@ const VocabularyView: React.FC<VocabularyViewProps> = ({ favorites, onToggleFavo
                   {lv}
                 </button>
               ))}
-            </div>
-          </div>
-
-          <div className="bg-white p-7 rounded-[2.8rem] border border-slate-100 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.05)] flex items-center justify-between">
-            <div className="flex items-center gap-5">
-               <div className="w-14 h-14 bg-indigo-50 rounded-[1.8rem] flex items-center justify-center text-indigo-600 shadow-inner">
-                  <i className="fa-solid fa-graduation-cap text-xl"></i>
-               </div>
-               <div>
-                  <span className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Current Session</span>
-                  <span className="text-base font-black text-slate-800">{selectedCat} - 레벨 {selectedLevel}</span>
-               </div>
-            </div>
-            <div className="text-right">
-               <span className="text-2xl font-black text-indigo-600">20</span>
-               <span className="text-[10px] font-bold text-slate-400 ml-1 uppercase">Words</span>
             </div>
           </div>
         </div>
@@ -156,9 +156,9 @@ const VocabularyView: React.FC<VocabularyViewProps> = ({ favorites, onToggleFavo
                 {playingId === word.id ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-volume-high text-sm"></i>}
               </button>
               <button
-                onClick={() => onToggleFavorite(word.id)}
+                onClick={() => { playClickSound(); onToggleFavorite(word.id); }}
                 className={`w-12 h-12 rounded-[1.2rem] flex items-center justify-center transition-all active:scale-90 shadow-sm border ${
-                  favorites.includes(word.id) ? 'bg-amber-50 text-amber-500 border-amber-100' : 'bg-white text-slate-100 border-slate-100'
+                  favorites.includes(word.id) ? 'bg-amber-50 text-amber-500 border-amber-200' : 'bg-white text-slate-100 border-slate-100'
                 }`}
               >
                 <i className={`fa-solid fa-star text-sm ${favorites.includes(word.id) ? 'text-amber-400' : ''}`}></i>

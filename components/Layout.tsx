@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { ViewType, User } from '../types';
+import { playClickSound } from '../services/audioService';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -20,6 +21,11 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, onNavigate, user,
     { type: ViewType.AI_TUTOR, icon: 'fa-robot', label: 'AI 튜터' },
   ];
 
+  const handleNavClick = (view: ViewType) => {
+    playClickSound();
+    onNavigate(view);
+  };
+
   return (
     <div className="flex flex-col min-h-screen max-w-md mx-auto bg-white shadow-2xl relative overflow-hidden">
       {/* Header */}
@@ -31,7 +37,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, onNavigate, user,
           <h1 className="text-lg font-black text-gray-800 tracking-tight">로직이의 쉬운일본어</h1>
         </div>
         {user && (
-          <button onClick={onLogout} className="flex items-center gap-2 group">
+          <button onClick={() => { playClickSound(); onLogout(); }} className="flex items-center gap-2 group">
             <img src={user.photo} className="w-8 h-8 rounded-full border border-gray-200" alt="Profile" />
           </button>
         )}
@@ -47,7 +53,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, onNavigate, user,
         {navItems.map((item) => (
           <button
             key={item.type}
-            onClick={() => onNavigate(item.type)}
+            onClick={() => handleNavClick(item.type)}
             className={`flex flex-col items-center p-2 rounded-2xl transition-all ${
               activeView === item.type ? 'text-indigo-600 bg-indigo-50 shadow-inner scale-105' : 'text-gray-400 hover:text-indigo-400'
             }`}
