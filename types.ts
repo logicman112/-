@@ -5,7 +5,8 @@ export enum ViewType {
   ALPHABET = 'ALPHABET',
   PHRASES = 'PHRASES',
   VOCABULARY = 'VOCABULARY',
-  AI_TUTOR = 'AI_TUTOR'
+  AI_TUTOR = 'AI_TUTOR',
+  QUIZ = 'QUIZ'
 }
 
 export interface Character {
@@ -31,8 +32,8 @@ export interface Word {
   jp: string;
   kr: string;
   phonetic: string;
-  category: string; // 추가
-  level: number;    // chapter에서 level로 변경
+  category: string;
+  level: number;
 }
 
 export interface ChatMessage {

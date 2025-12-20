@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { CHAPTER_WORDS } from '../constants';
 import { Word } from '../types';
 import { generateTTS, decode, decodeAudioData } from '../services/geminiService';
@@ -15,9 +15,11 @@ const VocabularyView: React.FC<VocabularyViewProps> = ({ favorites, onToggleFavo
   const [selectedCat, setSelectedCat] = useState<string>('기초 명사');
   const [selectedLevel, setSelectedLevel] = useState<number>(1);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   const categories = ['기초 명사', '일상 동사', '필수 형용사', '여행/생활', '비즈니스/사회'];
-  const levels = Array.from({ length: 5 }, (_, i) => i + 1); // 레벨 1~5로 제한
+  const levels = Array.from({ length: 5 }, (_, i) => i + 1);
 
   const displayedWords = useMemo(() => {
     if (tab === 'favorites') {
@@ -29,22 +31,32 @@ const VocabularyView: React.FC<VocabularyViewProps> = ({ favorites, onToggleFavo
   const playTTS = async (text: string, id: string) => {
     playClickSound();
     if (playingId) return;
+
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
+    }
+    
+    // 브라우저 정책 대응: suspended 상태면 resume 호출
+    if (audioContextRef.current.state === 'suspended') {
+      await audioContextRef.current.resume();
+    }
+
     setPlayingId(id);
     try {
       const audio = await generateTTS(text);
-      if (audio) {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
+      if (audio && audioContextRef.current) {
         const decoded = decode(audio);
-        const buffer = await decodeAudioData(decoded, audioCtx);
-        const source = audioCtx.createBufferSource();
+        const buffer = await decodeAudioData(decoded, audioContextRef.current);
+        const source = audioContextRef.current.createBufferSource();
         source.buffer = buffer;
-        source.connect(audioCtx.destination);
+        source.connect(audioContextRef.current.destination);
         source.onended = () => setPlayingId(null);
         source.start();
       } else {
         setPlayingId(null);
       }
     } catch (e) {
+      console.error("Audio Playback Error:", e);
       setPlayingId(null);
     }
   };

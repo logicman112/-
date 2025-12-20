@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { CHAPTER_WORDS, PHRASES } from '../constants';
 import { Word, Phrase, User } from '../types';
 import { generateTTS, decode, decodeAudioData } from '../services/geminiService';
@@ -64,6 +64,7 @@ const TodayView: React.FC<TodayViewProps> = ({ user, wordFavorites, phraseFavori
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [completionHistory, setCompletionHistory] = useState<string[]>([]);
   const todayStr = useMemo(() => getLocalDateStr(new Date()), []);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   const dailySelection = useMemo(() => {
     const getHash = (str: string) => {
@@ -110,22 +111,33 @@ const TodayView: React.FC<TodayViewProps> = ({ user, wordFavorites, phraseFavori
   const playTTS = async (text: string, id: string) => {
     playClickSound();
     if (playingId) return;
+
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
+    }
+
+    if (audioContextRef.current.state === 'suspended') {
+      await audioContextRef.current.resume();
+    }
+
     setPlayingId(id);
     try {
       const audio = await generateTTS(text);
-      if (audio) {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
+      if (audio && audioContextRef.current) {
         const decoded = decode(audio);
-        const buffer = await decodeAudioData(decoded, audioCtx);
-        const source = audioCtx.createBufferSource();
+        const buffer = await decodeAudioData(decoded, audioContextRef.current);
+        const source = audioContextRef.current.createBufferSource();
         source.buffer = buffer;
-        source.connect(audioCtx.destination);
+        source.connect(audioContextRef.current.destination);
         source.onended = () => setPlayingId(null);
         source.start();
       } else {
         setPlayingId(null);
       }
-    } catch (e) { setPlayingId(null); }
+    } catch (e) {
+      console.error("Audio Playback Error:", e);
+      setPlayingId(null);
+    }
   };
 
   const progress = Math.round((completedIds.length / 4) * 100);

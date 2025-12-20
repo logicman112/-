@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { PHRASES } from '../constants';
 import { Phrase } from '../types';
 import { generateTTS, decode, decodeAudioData } from '../services/geminiService';
@@ -8,18 +8,25 @@ import { playClickSound } from '../services/audioService';
 const PhraseCard: React.FC<{ 
   phrase: Phrase; 
   isFavorite: boolean; 
-  onToggleFavorite: (id: string) => void 
-}> = ({ phrase, isFavorite, onToggleFavorite }) => {
+  onToggleFavorite: (id: string) => void;
+  audioCtx: AudioContext | null;
+}> = ({ phrase, isFavorite, onToggleFavorite, audioCtx }) => {
   const [isPlaying, setIsPlaying] = useState(false);
 
   const play = async () => {
     playClickSound();
     if (isPlaying) return;
+    
+    if (audioCtx) {
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+    }
+
     setIsPlaying(true);
     try {
       const audioBase64 = await generateTTS(phrase.jp);
-      if (audioBase64) {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
+      if (audioBase64 && audioCtx) {
         const decoded = decode(audioBase64);
         const buffer = await decodeAudioData(decoded, audioCtx);
         const source = audioCtx.createBufferSource();
@@ -31,6 +38,7 @@ const PhraseCard: React.FC<{
         setIsPlaying(false);
       }
     } catch (e) {
+      console.error("Audio Playback Error:", e);
       setIsPlaying(false);
     }
   };
@@ -75,6 +83,7 @@ const PhraseView: React.FC<{ favorites: string[]; onToggleFavorite: (id: string)
   const [tab, setTab] = useState<'learn' | 'favs'>('learn');
   const [selectedCat, setSelectedCat] = useState<string>('인사');
   const [selectedLevel, setSelectedLevel] = useState<number>(1);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   const categories = ['인사', '식당', '질문', '쇼핑', '미팅', '일상', '여행', '병원', '공항', '호텔'];
   const levels = Array.from({ length: 10 }, (_, i) => i + 1);
@@ -89,6 +98,14 @@ const PhraseView: React.FC<{ favorites: string[]; onToggleFavorite: (id: string)
   const handleTabChange = (newTab: 'learn' | 'favs') => {
     playClickSound();
     setTab(newTab);
+  };
+
+  // Lazy initialize AudioContext
+  const getAudioCtx = () => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
+    }
+    return audioContextRef.current;
   };
 
   return (
@@ -120,7 +137,7 @@ const PhraseView: React.FC<{ favorites: string[]; onToggleFavorite: (id: string)
       )}
 
       <div className="space-y-4">
-        {displayedPhrases.map(p => <PhraseCard key={p.id} phrase={p} isFavorite={favorites.includes(p.id)} onToggleFavorite={onToggleFavorite} />)}
+        {displayedPhrases.map(p => <PhraseCard key={p.id} phrase={p} isFavorite={favorites.includes(p.id)} onToggleFavorite={onToggleFavorite} audioCtx={getAudioCtx()} />)}
       </div>
     </div>
   );
