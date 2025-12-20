@@ -3,7 +3,7 @@ import { GoogleGenAI, Modality } from "@google/genai";
 
 // 가이드라인 준수: API 호출 시마다 새로운 GoogleGenAI 인스턴스를 생성하여 최신 API 키 반영
 export const getGeminiChat = () => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
   return ai.chats.create({
     model: 'gemini-3-flash-preview',
     config: {
